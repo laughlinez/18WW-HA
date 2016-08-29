@@ -1,0 +1,12 @@
+name: Power Management
+entities:
+# - switch.red_led
+# - switch.green_led
+# - switch.yellow_led
+ - input_boolean.immersion_auto
+ - switch.solar_immersion
+ - sensor.consuming
+ - sensor.electricmeter1
+ - sensor.producing
+ - sensor.electricmeter2
+ 

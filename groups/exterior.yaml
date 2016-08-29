@@ -1,0 +1,4 @@
+name: Exterior
+entities:
+ - sun.sun
+ - sensor.yr_temperature

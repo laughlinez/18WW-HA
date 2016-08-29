@@ -1,0 +1,5 @@
+name: General Details
+entities:
+ - sensor.weather_temperature
+ - updater.updater
+

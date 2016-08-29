@@ -1,0 +1,254 @@
+homeassistant:
+  # Name of the location where Home Assistant is running
+  name: Home
+  # Location required to calculate the time the sun rises and sets
+  latitude: 52.67328
+  longitude: -0.17366
+  # Impacts weather/sunrise data
+  elevation: 3
+  # C for Celsius, F for Fahrenheit
+  #temperature_unit: C
+# # 'metric' for the metric system, 'imperial' for the imperial system
+  unit_system: metric
+  # Pick yours from here: http://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+  time_zone: Europe/London
+  customize:
+    sensor.consuming:
+      icon: mdi:speedometer
+    sensor.producing:
+      icon: mdi:speedometer
+    sensor.electricmeter1:
+      icon: mdi:counter
+    sensor.electricmeter2:
+      icon: mdi:counter
+    sensor.yr_temperature:
+      friendly_name: 'Temperature'
+
+zone 1:
+  name: POPs House
+  latitude: 52.60754
+  longitude: -0.19032
+  icon: mdi:home
+  radius: 50
+
+# View all events in a logbook
+logbook:
+
+# Track the sun
+sun:
+
+# Enables support for tracking state changes over time.
+history:
+
+# Weather Prediction
+sensor:
+  platform: yr
+  monitored_conditions:
+    - temperature
+    - symbol
+    - precipitation
+    - windSpeed
+    - pressure
+    - windDirection
+    - humidity
+    - fog
+    - cloudiness
+    - lowClouds
+    - mediumClouds
+    - highClouds
+    - dewpointTemperature
+
+#input_boolean
+input_boolean:
+  immersion_auto:
+    name: Immersion on Auto
+    initial: on
+    icon: mdi:flash-auto
+
+
+#powertrack
+sensor 1:
+  platform: mqtt
+  state_topic: "locations/MyHouse/power/emontx/1/meter/ct1"
+  name: "ElectricMeter1"
+  qos: 0
+  unit_of_measurement: "Kw"
+  value_template: '{{ value }}'
+
+sensor 4:
+  platform: mqtt
+  state_topic: "locations/MyHouse/power/emontx/1/meter/ct2"
+  name: "ElectricMeter2"
+  qos: 0
+  unit_of_measurement: "Kw"
+  value_template: '{{ value }}'
+
+#powertrack
+sensor 2:
+  platform: mqtt
+  state_topic: "locations/MyHouse/power/emontx/1/ct1/+"
+  name: "Consuming"
+  qos: 0
+  unit_of_measurement: "W"
+  value_template: '{{ value }}'
+
+#powertrack
+sensor 3:
+  platform: mqtt
+  state_topic: "locations/MyHouse/power/emontx/1/ct2/+"
+  name: "Producing"
+  qos: 0
+  unit_of_measurement: "W"
+  value_template: '{{ value }}'
+
+
+switch:
+ - platform: rpi_gpio
+   ports:
+     17: Red LED
+     27: Green LED
+     22: Yellow LED
+   invert_logic: true
+ - platform: mqtt
+   name: "Solar Immersion"
+   state_topic: "stat/solarimmersion/POWER"
+   command_topic: "cmnd/solarimmersion/power"
+   payload_on: "On"
+   payload_off: "Off"
+   optimistic: false
+   qos: 0
+   retain: false
+   value_template: '{{ value }}'
+
+# Enables the frontend
+frontend:
+
+# Checks for available updates
+updater:
+
+# Allows you to issue voice commands from the frontend
+conversation:
+
+# Show links to resources in log and frontend
+# introduction:
+
+# Discover some devices automatically
+discovery:
+
+zeroconf:
+
+
+
+mqtt:
+  broker: 127.0.0.1
+  port: 1883
+  client_id: home-assistant-1
+  username: pi
+  password: raspberry
+
+http:
+  api_password: sp3nc3r
+
+notify:
+  platform: pushbullet
+  api_key: o.72b3SkLuVzeIVRny3mbvIFZ9Oasg6acU
+  name: notify
+
+powertrack:
+  topic: locations/MyHouse/power/emontx/1/meter/ct1
+
+media_player:
+  platform: mpd
+  server: 192.168.1.113
+  port: 6600
+  location: conservatory
+#  password: PASSWORD
+
+automation:
+  - alias: 'Immersion LED On'
+    trigger: 
+      platform: state
+      entity_id: switch.solar_immersion
+      state: 'on'
+    condition: use_trigger_values
+    action:
+      service: switch.turn_on
+      entity_id: switch.yellow_led
+  - alias: 'Immersion LED Off'
+    trigger:
+      platform: state
+      entity_id: switch.solar_immersion
+      state: 'off'
+    condition: use_trigger_values
+    action:
+      service: switch.turn_off
+      entity_id: switch.yellow_led
+#if auto is OFF turn ON green LED
+  - alias: 'Immersion Override LED to On'
+    trigger:
+      platform: state
+      entity_id: input_boolean.immersion_auto
+      state: 'off'
+    action:
+      service: switch.turn_on
+      entity_id: switch.green_led
+#if auto is ON turn OFF green LED
+  - alias: 'Immersion Override LED to Off'
+    trigger:
+      platform: state
+      entity_id: input_boolean.immersion_auto
+      state: 'on'
+    action:
+      service: switch.turn_off
+      entity_id: switch.green_led  
+  - alias: 'Send notification when sun rises'
+    trigger:
+      platform: sun
+      event: sunrise
+      offset: '+00:00:00'
+    action:
+      service: notify.pushbullet
+      data:
+        message: 'The sun is up.'
+  - alias: 'Send notification when sun sets'
+    trigger:
+      platform: sun
+      event: sunset
+      offset: '+00:00:00'
+    action:
+      service: notify.pushbullet
+      data:
+        message: 'The sun is down.'
+  - alias: TempDown
+    trigger:
+      platform: numeric_state
+      entity_id: sensor.yr_temperature
+      below: 23.5
+    action:
+      service: notify.notify
+      data:
+        title: "Temp isfalling"
+        message: "temp below {{ states.sensor.yr_temperature }} degC"
+  - alias: TempUp
+    trigger:
+      platform: numeric_state
+      entity_id: sensor.yr_temperature
+      above: 23.5
+    action:
+      service: notify.notify
+      data:
+        title: "Temp isrising"
+        message: "temp above {{ states.sensor.yr_temperature }} degC"
+  - alias: Update notifications
+    trigger:
+      platform: state
+      entity_id: updater.updater
+    action:
+      service: notify.notify
+      data:
+        title: "HA Update"
+        message: "There is a new Home Assistant release available."
+
+
+group: !include_dir_named groups
+
